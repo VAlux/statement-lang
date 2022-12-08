@@ -30,7 +30,7 @@ case class Statement(terms: List[Term])
 
 sealed trait Expr
 object Expr:
-  case class Nop() extends Expr
+  case object Nop extends Expr
   case class Value(value: String) extends Expr
   case class Pointer(binding: String) extends Expr
   case class Predicate(expr: Expr, check: Expr) extends Expr
@@ -62,7 +62,7 @@ def read(file: File): List[String] =
 
 def toAST(
     terms: List[Term],
-    current: Expr,
+    current: Expr = Expr.Nop,
     stack: List[Term] = List.empty
 ): Expr =
   if terms.isEmpty then current
@@ -71,14 +71,14 @@ def toAST(
       case Show => toAST(terms.tail, current, stack :+ Term.Show)
       case Hide => toAST(terms.tail, current, stack :+ Term.Hide)
       case Set  => toAST(terms.tail, current, stack :+ Term.Set)
-      case When => Expr.Predicate(current, toAST(terms.tail, Expr.Nop(), stack))
-      case Or   => Expr.Or(current, toAST(terms.tail, Expr.Nop(), stack))
-      case And  => Expr.And(current, toAST(terms.tail, Expr.Nop(), stack))
+      case When => Expr.Predicate(current, toAST(terms.tail, Expr.Nop, stack))
+      case Or   => Expr.Or(current, toAST(terms.tail, stack = stack))
+      case And  => Expr.And(current, toAST(terms.tail, stack = stack))
       case To =>
         stack match
           case Set :: Pointer(binding) :: _ =>
-            toAST(terms.tail, Expr.Nop(), stack :+ To)
-          case _ => Expr.Nop()
+            toAST(terms.tail, stack = stack :+ To)
+          case _ => Expr.Nop
       case Eq => toAST(terms.tail, current, stack :+ Eq)
       case Val(content) =>
         stack match
@@ -102,11 +102,12 @@ def toAST(
           case Hide =>
             toAST(terms.tail, Expr.Hide(Expr.Pointer(binding)), stack.init)
           case Set =>
-            toAST(terms.tail, Expr.Nop(), stack :+ Pointer(binding))
-          case _ => Expr.Nop()
+            toAST(terms.tail, stack = stack :+ Pointer(binding))
+          case _ => Expr.Nop
 
 @main def entrypoint =
   val statements = parse(read(File("example.txt")))
+  val ast = statements.map(statement => toAST(statement.terms))
+
   statements.foreach(println)
-  val ast = statements.map(statement => toAST(statement.terms, Expr.Nop()))
   ast.foreach(println)
