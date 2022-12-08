@@ -1,10 +1,5 @@
 import java.io.File
 import scala.io.Source
-import Term.*
-import Expr.Nop
-import Expr.Value
-import Expr.Predicate
-import Expr.Assignment
 
 enum Token:
   case Value extends Token
@@ -30,6 +25,7 @@ case class Statement(terms: List[Term])
 
 sealed trait Expr
 object Expr:
+  import Term.*
   case object Nop extends Expr
   case class Value(value: String) extends Expr
   case class Pointer(binding: String) extends Expr
@@ -41,91 +37,95 @@ object Expr:
   case class Show(value: Expr) extends Expr
   case class Hide(value: Expr) extends Expr
 
-def parseTerms(source: String): List[Term] = source.split(" ").toList.map {
-  case "Show"                         => Show
-  case "Hide"                         => Hide
-  case "Set"                          => Set
-  case "when"                         => When
-  case "or"                           => Or
-  case "and"                          => And
-  case "to"                           => To
-  case "=="                           => Eq
-  case token if token.startsWith("*") => Pointer(token.drop(1))
-  case token                          => Val(token)
-}
+object Parser:
+  import Term.*
+  def parseTerms(source: String): List[Term] = source.split(" ").toList.map {
+    case "Show"                         => Show
+    case "Hide"                         => Hide
+    case "Set"                          => Set
+    case "when"                         => When
+    case "or"                           => Or
+    case "and"                          => And
+    case "to"                           => To
+    case "=="                           => Eq
+    case token if token.startsWith("*") => Pointer(token.drop(1))
+    case token                          => Val(token)
+  }
 
-def parse(statements: List[String]): List[Statement] =
-  statements.map(terms => Statement(parseTerms(terms)))
+  def parse(statements: List[String]): List[Statement] =
+    statements.map(terms => Statement(parseTerms(terms)))
 
 def read(file: File): List[String] =
   Source.fromFile(file, "UTF-8").getLines().toList
 
-def toAST(
-    terms: List[Term],
-    current: Expr = Expr.Nop,
-    stack: List[Term] = List.empty
-): Expr =
-  if terms.isEmpty then current
-  else
-    terms.head match
-      case Show => toAST(terms.tail, current, stack :+ Term.Show)
-      case Hide => toAST(terms.tail, current, stack :+ Term.Hide)
-      case Set  => toAST(terms.tail, current, stack :+ Term.Set)
-      case When => Expr.Predicate(current, toAST(terms.tail, Expr.Nop, stack))
-      case Or   => Expr.Or(current, toAST(terms.tail, stack = stack))
-      case And  => Expr.And(current, toAST(terms.tail, stack = stack))
-      case To =>
-        stack match
-          case Set :: Pointer(binding) :: _ =>
-            toAST(terms.tail, stack = stack :+ To)
-          case _ => Expr.Nop
-      case Eq => toAST(terms.tail, current, stack :+ Eq)
-      case Val(content) =>
-        stack match
-          case Set :: Pointer(binding) :: To :: _ =>
-            toAST(
-              terms.tail,
-              Expr.Assignment(Expr.Pointer(binding), Expr.Value(content)),
-              stack.drop(3)
-            )
-          case Eq :: _ =>
-            toAST(
-              terms.tail,
-              Expr.Eq(current, Expr.Value(content)),
-              stack.drop(1)
-            )
-          case _ => toAST(terms.tail, Expr.Value(content), stack)
-      case Pointer(binding) =>
-        stack.head match
-          case Show =>
-            toAST(terms.tail, Expr.Show(Expr.Pointer(binding)), stack.init)
-          case Hide =>
-            toAST(terms.tail, Expr.Hide(Expr.Pointer(binding)), stack.init)
-          case Set =>
-            toAST(terms.tail, stack = stack :+ Pointer(binding))
-          case _ => Expr.Nop
+object AST:
+  import Term.*
+  def toAST(
+      terms: List[Term],
+      current: Expr = Expr.Nop,
+      stack: List[Term] = List.empty
+  ): Expr =
+    if terms.isEmpty then current
+    else
+      terms.head match
+        case Show => toAST(terms.tail, current, stack :+ Term.Show)
+        case Hide => toAST(terms.tail, current, stack :+ Term.Hide)
+        case Set  => toAST(terms.tail, current, stack :+ Term.Set)
+        case When => Expr.Predicate(current, toAST(terms.tail, Expr.Nop, stack))
+        case Or   => Expr.Or(current, toAST(terms.tail, stack = stack))
+        case And  => Expr.And(current, toAST(terms.tail, stack = stack))
+        case To =>
+          stack match
+            case Set :: Pointer(binding) :: _ =>
+              toAST(terms.tail, stack = stack :+ To)
+            case _ => Expr.Nop
+        case Eq => toAST(terms.tail, current, stack :+ Eq)
+        case Val(content) =>
+          stack match
+            case Set :: Pointer(binding) :: To :: _ =>
+              toAST(
+                terms.tail,
+                Expr.Assignment(Expr.Pointer(binding), Expr.Value(content)),
+                stack.drop(3)
+              )
+            case Eq :: _ =>
+              toAST(
+                terms.tail,
+                Expr.Eq(current, Expr.Value(content)),
+                stack.drop(1)
+              )
+            case _ => toAST(terms.tail, Expr.Value(content), stack)
+        case Pointer(binding) =>
+          stack.head match
+            case Show =>
+              toAST(terms.tail, Expr.Show(Expr.Pointer(binding)), stack.init)
+            case Hide =>
+              toAST(terms.tail, Expr.Hide(Expr.Pointer(binding)), stack.init)
+            case Set =>
+              toAST(terms.tail, stack = stack :+ Pointer(binding))
+            case _ => Expr.Nop
 
-def asString(root: Expr): String =
-  root match
-    case Expr.Nop              => "NOP"
-    case Expr.Value(value)     => s"$value"
-    case Expr.Pointer(binding) => s"*$binding"
-    case Expr.Predicate(expr, check) =>
-      s"if (${asString(check)}) then ${asString(expr)}"
-    case Expr.Or(left, right)  => s"${asString(left)} or ${asString(right)}"
-    case Expr.And(left, right) => s"${asString(left)} and ${asString(right)}"
-    case Expr.Eq(left, right)  => s"${asString(left)} == ${asString(right)}"
-    case Expr.Assignment(receiver, value) =>
-      s"${asString(receiver)} = ${asString(value)}"
-    case Expr.Show(value) => s"Show ${asString(value)}"
-    case Expr.Hide(value) => s"Hide ${asString(value)}"
+object Interpreter:
+  import Expr.*
+  def asString(root: Expr): String =
+    root match
+      case Nop              => "NOP"
+      case Value(value)     => s"$value"
+      case Pointer(binding) => s"*$binding"
+      case Predicate(expr, check) =>
+        s"if (${asString(check)}) then ${asString(expr)}"
+      case Or(left, right)  => s"${asString(left)} or ${asString(right)}"
+      case And(left, right) => s"${asString(left)} and ${asString(right)}"
+      case Eq(left, right)  => s"${asString(left)} == ${asString(right)}"
+      case Assignment(receiver, value) =>
+        s"${asString(receiver)} = ${asString(value)}"
+      case Show(value) => s"Show ${asString(value)}"
+      case Hide(value) => s"Hide ${asString(value)}"
 
 @main def entrypoint =
-  val statements = parse(read(File("example.txt")))
-  val ast = statements.map(statement => toAST(statement.terms))
+  val statements = Parser.parse(read(File("example.txt")))
+  val ast = statements.map(statement => AST.toAST(statement.terms))
 
   statements.foreach(println)
   ast.foreach(println)
-  ast.foreach(root => println(asString(root)))
-
-  println(asString(ast.last))
+  ast.foreach(root => println(Interpreter.asString(root)))
