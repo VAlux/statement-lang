@@ -105,9 +105,27 @@ def toAST(
             toAST(terms.tail, stack = stack :+ Pointer(binding))
           case _ => Expr.Nop
 
+def asString(root: Expr): String =
+  root match
+    case Expr.Nop              => "NOP"
+    case Expr.Value(value)     => s"$value"
+    case Expr.Pointer(binding) => s"*$binding"
+    case Expr.Predicate(expr, check) =>
+      s"if (${asString(check)}) then ${asString(expr)}"
+    case Expr.Or(left, right)  => s"${asString(left)} or ${asString(right)}"
+    case Expr.And(left, right) => s"${asString(left)} and ${asString(right)}"
+    case Expr.Eq(left, right)  => s"${asString(left)} == ${asString(right)}"
+    case Expr.Assignment(receiver, value) =>
+      s"${asString(receiver)} = ${asString(value)}"
+    case Expr.Show(value) => s"Show ${asString(value)}"
+    case Expr.Hide(value) => s"Hide ${asString(value)}"
+
 @main def entrypoint =
   val statements = parse(read(File("example.txt")))
   val ast = statements.map(statement => toAST(statement.terms))
 
   statements.foreach(println)
   ast.foreach(println)
+  ast.foreach(root => println(asString(root)))
+
+  println(asString(ast.last))
