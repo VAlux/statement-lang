@@ -1,4 +1,5 @@
-# State lang
+# Statement lang 
+----
 
 ## Given the DSL example source:
 ```
@@ -41,3 +42,9 @@ if (Q5.A2 == Q5.A1) then *Q5.A3 = 10
 if (Q5.A2 == Q5.A1 and Q5.A3 == Q5.A4 or Q5.A6 == Q5.A8) then *Q5.A3 = 10
 if (Q5.A2 == Q5.A1 and Q5.A3 == Q5.A4 or Q5.A6 == Q5.A8) then *Q5.A3 = 10
 ```
+
+# Run:
+
+1. Install SBT from https://www.scala-sbt.org
+2. Go to the project root folder
+3. Run `sbt run` command from terminal
