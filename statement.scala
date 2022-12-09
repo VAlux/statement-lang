@@ -25,7 +25,6 @@ case class Statement(terms: List[Term])
 
 sealed trait Expr
 object Expr:
-  import Term.*
   case object Nop extends Expr
   case class Value(value: String) extends Expr
   case class Pointer(binding: String) extends Expr
@@ -113,14 +112,32 @@ object Interpreter:
       case Value(value)     => s"$value"
       case Pointer(binding) => s"*$binding"
       case Predicate(expr, check) =>
-        s"if (${asString(check)}) then ${asString(expr)}"
-      case Or(left, right)  => s"${asString(left)} or ${asString(right)}"
-      case And(left, right) => s"${asString(left)} and ${asString(right)}"
+        s"if ${asString(check)} then ${asString(expr)}"
+      case Or(left, right)  => s"(${asString(left)} or ${asString(right)})"
+      case And(left, right) => s"(${asString(left)} and ${asString(right)})"
       case Eq(left, right)  => s"${asString(left)} == ${asString(right)}"
       case Assignment(receiver, value) =>
         s"${asString(receiver)} = ${asString(value)}"
       case Show(value) => s"Show ${asString(value)}"
       case Hide(value) => s"Hide ${asString(value)}"
+
+  def asGraphVis(root: Expr, level: Int = 0): String =
+    root match
+      case Nop              => "NOP"
+      case Value(value)     => s"\"$value\""
+      case Pointer(binding) => s"\"*($binding)\""
+      case Predicate(expr, check) =>
+        s"PREDICATE$level -- ${asGraphVis(check, level + 1)} PREDICATE$level -- ${asGraphVis(expr, level + 2)}"
+      case Or(left, right) =>
+        s"OR$level -- ${asGraphVis(left, level + 1)} OR$level -- ${asGraphVis(right, level + 2)}"
+      case And(left, right) =>
+        s"AND$level -- ${asGraphVis(left, level + 1)} AND$level -- ${asGraphVis(right, level + 2)}"
+      case Eq(left, right) =>
+        s"EQ$level -- ${asGraphVis(left, level + 1)} EQ$level -- ${asGraphVis(right, level + 2)}"
+      case Assignment(receiver, value) =>
+        s"ASSIGN$level -- ${asGraphVis(receiver)} ASSIGN$level -- ${asGraphVis(value)}"
+      case Show(value) => s"\"SHOW$level ($value)\""
+      case Hide(value) => s"\"HIDE$level ($value)\""
 
 @main def entrypoint =
   val statements = Parser.parse(read(File("example.txt")))
@@ -129,3 +146,4 @@ object Interpreter:
   statements.foreach(println)
   ast.foreach(println)
   ast.foreach(root => println(Interpreter.asString(root)))
+  ast.foreach(root => println(Interpreter.asGraphVis(root)))
