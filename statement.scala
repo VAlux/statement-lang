@@ -27,6 +27,7 @@ sealed trait Expr
 object Expr:
   case object Nop extends Expr
   case class Value(value: String) extends Expr
+  case class Error(value: String) extends Expr
   case class Pointer(binding: String) extends Expr
   case class Predicate(expr: Expr, check: Expr) extends Expr
   case class Or(left: Expr, right: Expr) extends Expr
@@ -77,7 +78,7 @@ object AST:
           stack match
             case Set :: Pointer(binding) :: _ =>
               toAST(terms.tail, stack = stack :+ To)
-            case _ => Expr.Nop
+            case _ => Expr.Error("'to' is expected")
         case Eq => toAST(terms.tail, current, stack :+ Eq)
         case Val(content) =>
           stack match

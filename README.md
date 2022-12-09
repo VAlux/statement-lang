@@ -42,6 +42,68 @@ if (Q5.A2 == Q5.A1) then *Q5.A3 = 10
 if (Q5.A2 == Q5.A1 and Q5.A3 == Q5.A4 or Q5.A6 == Q5.A8) then *Q5.A3 = 10
 ```
 
+## Example of interpretation into GraphVis:
+```graphviz
+PREDICATE0 [label="PREDICATE"]
+ROOT -- PREDICATE0
+EQ1 [label="EQ"]
+PREDICATE0 -- EQ1
+EQ1 -- "Q1.A1"
+EQ1 -- "true"
+PREDICATE0 -- "SHOW2 (Pointer(Q2))"
+
+PREDICATE0 [label="PREDICATE"]
+ROOT -- PREDICATE0
+EQ1 [label="EQ"]
+PREDICATE0 -- EQ1
+EQ1 -- "Q1.A3"
+EQ1 -- "false"
+PREDICATE0 -- "HIDE2 (Pointer(Q3))"
+
+ASSIGNMENT0 [label="ASSIGNMENT"]
+ROOT -- ASSIGNMENT0
+ASSIGNMENT0 -- "*(Q5.A1)"
+ASSIGNMENT0 -- "3"
+
+ASSIGNMENT0 [label="ASSIGNMENT"]
+ROOT -- ASSIGNMENT0
+ASSIGNMENT0 -- "*(Q5.A2)"
+ASSIGNMENT0 -- "Q3.A2"
+
+PREDICATE0 [label="PREDICATE"]
+ROOT -- PREDICATE0
+EQ1 [label="EQ"]
+PREDICATE0 -- EQ1
+EQ1 -- "Q5.A2"
+EQ1 -- "Q5.A1"
+ASSIGNMENT2 [label="ASSIGNMENT"]
+PREDICATE0 -- ASSIGNMENT2
+ASSIGNMENT2 -- "*(Q5.A3)"
+ASSIGNMENT2 -- "10"
+
+PREDICATE0 [label="PREDICATE"]
+ROOT -- PREDICATE0
+AND1 [label="AND"]
+PREDICATE0 -- AND1
+EQ2 [label="EQ"]
+AND1 -- EQ2
+EQ2 -- "Q5.A2"
+EQ2 -- "Q5.A1"
+OR3 [label="OR"]
+AND1 -- OR3
+EQ4 [label="EQ"]
+OR3 -- EQ4
+EQ4 -- "Q5.A3"
+EQ4 -- "Q5.A4"
+EQ5 [label="EQ"]
+OR3 -- EQ5
+EQ5 -- "Q5.A6"
+EQ5 -- "Q5.A8"
+ASSIGNMENT2 [label="ASSIGNMENT"]
+PREDICATE0 -- ASSIGNMENT2
+ASSIGNMENT2 -- "*(Q5.A3)"
+ASSIGNMENT2 -- "10"
+```
 # Run:
 
 1. Install SBT from https://www.scala-sbt.org
