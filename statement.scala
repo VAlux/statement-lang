@@ -121,23 +121,38 @@ object Interpreter:
       case Show(value) => s"Show ${asString(value)}"
       case Hide(value) => s"Hide ${asString(value)}"
 
-  def asGraphVis(root: Expr, level: Int = 0): String =
+  def asGraphVis(root: Expr, level: Int = 0, parent: String = "ROOT"): String =
     root match
-      case Nop              => "NOP"
-      case Value(value)     => s"\"$value\""
-      case Pointer(binding) => s"\"*($binding)\""
+      case Nop              => s"$parent -- NOP\n"
+      case Value(value)     => s"$parent -- \"$value\"\n"
+      case Pointer(binding) => s"$parent -- \"*($binding)\"\n"
       case Predicate(expr, check) =>
-        s"PREDICATE$level -- ${asGraphVis(check, level + 1)} PREDICATE$level -- ${asGraphVis(expr, level + 2)}"
+        s"PREDICATE$level [label=\"PREDICATE\"]\n" +
+        s"$parent -- PREDICATE$level\n" +
+        asGraphVis(check, level + 1, s"PREDICATE$level") +
+        asGraphVis(expr, level + 2, s"PREDICATE$level")
       case Or(left, right) =>
-        s"OR$level -- ${asGraphVis(left, level + 1)} OR$level -- ${asGraphVis(right, level + 2)}"
+        s"OR$level [label=\"OR\"]\n" +
+        s"$parent -- OR$level\n" +
+        asGraphVis(left, level + 1, s"OR$level") +
+        asGraphVis(right, level + 2, s"OR$level")
       case And(left, right) =>
-        s"AND$level -- ${asGraphVis(left, level + 1)} AND$level -- ${asGraphVis(right, level + 2)}"
+        s"AND$level [label=\"AND\"]\n" +
+        s"$parent -- AND$level\n" +
+        asGraphVis(left, level + 1, s"AND$level") +
+        asGraphVis(right, level + 2, s"AND$level")
       case Eq(left, right) =>
-        s"EQ$level -- ${asGraphVis(left, level + 1)} EQ$level -- ${asGraphVis(right, level + 2)}"
+        s"EQ$level [label=\"EQ\"]\n" +
+        s"$parent -- EQ$level\n" +
+        asGraphVis(left, level + 1, s"EQ$level") +
+        asGraphVis(right, level + 2, s"EQ$level")
       case Assignment(receiver, value) =>
-        s"ASSIGN$level -- ${asGraphVis(receiver)} ASSIGN$level -- ${asGraphVis(value)}"
-      case Show(value) => s"\"SHOW$level ($value)\""
-      case Hide(value) => s"\"HIDE$level ($value)\""
+        s"ASSIGNMENT$level [label=\"ASSIGNMENT\"]\n" +
+        s"$parent -- ASSIGNMENT$level\n" +
+        asGraphVis(receiver, level + 1, s"ASSIGNMENT$level") +
+        asGraphVis(value, level + 2, s"ASSIGNMENT$level")
+      case Show(value) => s"$parent -- \"SHOW$level ($value)\"\n"
+      case Hide(value) => s"$parent -- \"HIDE$level ($value)\"\n"
 
 @main def entrypoint =
   val statements = Parser.parse(read(File("example.txt")))
